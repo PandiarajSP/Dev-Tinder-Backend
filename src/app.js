@@ -1,20 +1,53 @@
 const express = require("express");
-const { userAuth } = require("./midldewares/auth");
+const { validateSignup } = require("./utils/validate");
 const connectDB = require("./config/database");
 const User = require("./models/user");
+const bcrypt = require("bcrypt");
+const { default: mongoose } = require("mongoose");
 const app = express();
 // Middleware for parsing the request into JSON
 app.use(express.json())
 
 app.post("/signup", async (req, res) => {
-    const request = req.body;
-    const user = new User(request);
 
     try {
+        const { firstName, lastName, emailId, password } = req.body;
+        //validate the request
+        validateSignup(req.body);
+        // Encrypt the password , 10 - SALT rounds (Encrypting rounds using the salt)
+        const passwordHashed = await bcrypt.hash(password, 10);
+
+        const user = new User({
+            firstName: firstName,
+            lastName: lastName,
+            emailId: emailId,
+            password: passwordHashed
+        });
+
         await user.save();
         res.send("User saved");
     } catch (err) {
-        res.status(400).send("Error saving the user: " + err.message)
+        res.status(400).send("Error: " + err.message)
+    }
+})
+
+app.post("/login", async (req, res) => {
+
+    try {
+        const { emailId, password } = req.body;
+        const isUserPresent = await User.findOne({ emailId: emailId });
+
+        if (!isUserPresent)
+            throw new Error("Invalid credentials!");
+
+        const passwordValid = await bcrypt.compare(password, isUserPresent.password);
+        if (!passwordValid) {
+            throw new Error("Invalid credentials");
+        }
+        res.send("User Logged in successfully")
+
+    } catch (err) {
+        res.status(500).send("Error : " + err.message);
     }
 })
 
