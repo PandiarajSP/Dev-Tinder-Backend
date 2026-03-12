@@ -4,6 +4,7 @@ const connectDB = require("./config/database");
 const User = require("./models/user");
 const bcrypt = require("bcrypt");
 const { default: mongoose } = require("mongoose");
+const jwt = require("jsonwebtoken");
 const app = express();
 // Middleware for parsing the request into JSON
 app.use(express.json())
@@ -36,17 +37,23 @@ app.post("/login", async (req, res) => {
     try {
         const { emailId, password } = req.body;
         const isUserPresent = await User.findOne({ emailId: emailId });
-
         if (!isUserPresent)
             throw new Error("Invalid credentials!");
 
         const passwordValid = await bcrypt.compare(password, isUserPresent.password);
-        if (!passwordValid) {
+        if (passwordValid) {
+            // Create JWT token
+            const token = await jwt.sign({ _id: isUserPresent._id }, "DEV@Tinder$790");
+            console.log(token);
+            res.cookie("token", token);
+            res.send("User Logged in successfully")
+        }
+        else {
             throw new Error("Invalid credentials");
         }
-        res.send("User Logged in successfully")
 
     } catch (err) {
+        console.log(err);
         res.status(500).send("Error : " + err.message);
     }
 })
